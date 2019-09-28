@@ -1,12 +1,18 @@
 var express = require('express');
 var router = express.Router();
 const Channel = require('../models/channel');
-//const db = require('../config/database');
-//var btoa = require('btoa');
+var axios = require('axios');
+var btoa = require('btoa');
 var parseString = require('xml2js').parseString;
 var request = require('request');
 var promise = require('promise');
 var ExternelSystem = require('../models/externelSystem');
+var Message = require('../models/message');
+const formatMessage = require('../modules/formatMessage');
+var xpath = require('xpath'),
+    dom = require('xmldom').DOMParser;
+const config = require('../config');
+var getMessagesFromXML = require('../modules/getMessagesFromXml');
 // constructor function 
 function system(name, messages_received, messages_sent) {
     // add patients-wounds-measurements
@@ -23,15 +29,73 @@ function messages(ack, nack) {
 router.get('/', async(req, res, next) => {
 
     let systems = await ExternelSystem.findAll();
-    let resp = [];
+    let resp = {};
     systems.forEach(elem => {
-        obj = {};
-        obj[elem.name] = {};
-        obj[elem.name]["messages_received"] = new messages(0, 0);
-        obj[elem.name]["messages_sent"] = new messages(0, 0);
-        resp.push(obj);
+        resp[elem.name.toLowerCase()] = {};
+        resp[elem.name.toLowerCase()]["messages_received"] = new messages(0, 0);
+        resp[elem.name.toLowerCase()]["messages_sent"] = new messages(0, 0);
+    });
+
+    //http://api-mirth-url//api/channelId/messages
+    urlsMessagesPerChannel = [];
+
+    response = await axios.get(config.mirth.url + 'channels/idsAndNames', {
+        proxy: {
+            host: '10.23.201.11',
+            port: 3128,
+        },
+        headers: { Authorization: 'Basic ' + btoa(config.mirth.user + ':' + config.mirth.password) }
+    });
+
+    var doc = new dom().parseFromString(response.data);
+    var channels = xpath.select("//entry", doc);
+    channels.forEach(elem => {
+        var doc = new dom().parseFromString('' + elem);
+        url = config.mirth.url + 'channels/' + xpath.select('string(//string)', doc) + '/messages';
+        //url += '?includeContent=true&offset=0&limit=20';
+        urlsMessagesPerChannel.push(url);
+    });
+    urlsMessagesPerChannel.forEach(async url => {
+        try {
+            response = await axios.get(url + '?includeContent=true&offset=0&limit=20', {
+                proxy: {
+                    host: '10.23.201.11',
+                    port: 3128,
+                },
+                headers: { Authorization: 'Basic ' + btoa(config.mirth.user + ':' + config.mirth.password) }
+            });
+            if (response.status !== 200) {
+                return res.json('error');
+            } else {
+                messages = getMessagesFromXml(response.data);
+                messages.forEach(message => {
+                    if (message) {
+                        if (message.sent) {
+                            message.ackNack ? resp[message.externalsystem].messages_sent.ack++ : resp[message.externalsystem].messages_sent.nack++;
+                        } else if (message.received) {
+                            message.ackNack ? resp[message.externalsystem].messages_received.ack++ : resp[message.externalsystem].messages_received.nack++;
+                        }
+                    }
+                });
+            }
+
+        } catch (err) {
+            return res.json(err);
+        }
     });
     return res.json(resp);
+    str = "MSH|^~\&amp;|GEC|TTT|EKARE|EKARE|201908061212||SIU^S12|H20190806121235.9956|P|2.3|-1||||||||&#xd;SCH|26721328||||||cysto-trus|CYS|15|MIN|^^^201909100900|353060^BANDI MD^GAURAV^^^^^1891750196^107008||||||||JXC74|||||P|||DOC||CYSTO|GUH PHC-4TH FL|UROLOGY-GUH||MU5||||||JXC74|&#xd;NTE|1||sched wpt on 08/06/2019||||&#xd;PID|1|11669410^^^MEDSTAR|1111111121^^^GUH||test^test^MITCHELL^^^^L||19531110|M|||212 MISSISSIPPI AVE SE^APT 201^WASHINGTON^DC^20032||(240)353-1765|||||||||||||||||||||||||||||&#xd;PV1|1|O|GP4||||353060^BANDI MD^GAURAV.^^^^^1891750196||||||||||||26721328|||||||||||||||||||||||||201909100900|||||||||||&#xd;AIS|1||26721328|201909100900|||15|MIN||P|&#xd;AIG|1||353060^BANDI MD^GAURAV^^^^^1891750196^107008|S||||201909100900|||15|MIN||P|&#xd;AIL|1||GP4~GURO|||201909100900|||15|MIN||P|&#xd;AIP|1||353060^BANDI MD^GAURAV^^^^^1891750196^107008|S||201909100900|||15|MIN||P|";
+    let message = formatMessage(str);
+    if (message) {
+        if (message.sent) {
+            message.ackNack ? resp[message.externalsystem].messages_sent.ack++ : resp[message.externalsystem].messages_sent.nack++;
+        } else if (message.received) {
+            message.ackNack ? resp[message.externalsystem].messages_received.ack++ : resp[message.externalsystem].messages_received.nack++;
+        }
+    }
+    return res.json(resp);
+
+
     var urls = ["https://app-15086.on-aptible.com/api/channels/47755bd5-d542-4256-80fb-63b92b4d93b6/messages/?includeContent=true&offset=0&limit=20",
         "https://app-15086.on-aptible.com/api/channels/d2171a62-702b-4262-b026-eded81cc0719/messages/?includeContent=true&offset=0&limit=20"
     ];
@@ -106,13 +170,13 @@ router.get('/', async(req, res, next) => {
 
 
 
-
         /*parseString(body, function(err,result){
             let data = JSON.stringify(result);
             console.log(data);
             let systems = JSON.parse(data);
             res.json(systems);*/
     });
+
     router.route('/id').get((req, res, next) => {
 
         request.get({
