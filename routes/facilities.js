@@ -24,9 +24,9 @@ function messages(ack,nack){
     this.nack = nack; 
 }
 
-router.get('/',(req, res, next)=>{
-    var urls = ["https://app-15086.on-aptible.com/api/channels/47755bd5-d542-4256-80fb-63b92b4d93b6/messages/1",
-    "https://app-15086.on-aptible.com/api/channels/47755bd5-d542-4256-80fb-63b92b4d93b6/messages/2","https://app-15086.on-aptible.com/api/channels/47755bd5-d542-4256-80fb-63b92b4d93b6/messages/3"];
+router.get('/:facilityId',(req, res, next)=>{
+    var urls = ["https://app-15086.on-aptible.com/api/channels/d2171a62-702b-4262-b026-eded81cc0719/messages/1",
+    "https://app-15086.on-aptible.com/api/channels/d2171a62-702b-4262-b026-eded81cc0719/messages/2","https://app-15086.on-aptible.com/api/channels/d2171a62-702b-4262-b026-eded81cc0719/messages/3"];
     var responses = [];
     var completed_requests = 0;
     var facility_id; 
@@ -34,6 +34,7 @@ router.get('/',(req, res, next)=>{
 
     urls.forEach(uri =>{
         request.get({url : uri,
+        proxy: 'http://10.23.201.11:3128', // if having internet access directly, comment this line 
         headers : {
             responseType:'application/xml',
             Accept:  'application/xml',

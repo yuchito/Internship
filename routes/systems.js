@@ -29,7 +29,8 @@ router.get('/', (req, res, next) => {
 
         urls.forEach(uri => {
     
-            request.get({url: uri, 
+            request.get({url: uri,
+                proxy: 'http://10.23.201.11:3128', 
                 headers : {
                      responseType:'application/xml',
                      Accept:  'application/xml',
@@ -43,30 +44,30 @@ router.get('/', (req, res, next) => {
                     
                     parseString(body,function(e,r){
                         
-                        let data = JSON.parse(JSON.stringify(r));
+                        let data = JSON.parse(JSON.stringify(r.list));
                         // delete data[list];
-                        // res.json(
-                        //     data
-                        // );
+                        res.json(
+                            data
+                        );
                          // create an instance
                          let sent_ack_count = 0;
                          let sent_nack_count = 0;
                          let received_ack_count = 0;
                          let received_nack_count = 0;
-                         r.list.message.forEach(msg => {
-                                msg.connectorMessages[0].entry.forEach(element => {
-                                    let connectorName = element.connectorMessage[0].connectorName;
-                                    if(connectorName.toString() === "Processing" ){
+                        //  r.list.message.forEach(msg => {
+                        //         msg.connectorMessages[0].entry.forEach(element => {
+                        //             // let connectorName = element.connectorMessage[0].connectorName;
+                        //             // if(connectorName.toString() === "Processing" ){
 
-                                        let sent = element.connectorMessage[0].sent[0].content[0];
-                                        sent_nack_count += ((sent.match( /AE/g) || []).length) ;
-                                        sent_ack_count += ((sent.match( /AA/g) || []).length) ;
-                                        let response = element.connectorMessage[0].response[0].content[0];
-                                        received_nack_count += ((response.match( /AE/g) || []).length) ;
-                                        received_ack_count += ((response.match( /AA/g) || []).length) ; 
-                                    }
+                        //                 let sent = element.connectorMessage[0].sent[0].content[0];
+                        //                 sent_nack_count += ((sent.match( /AE/g) || []).length) ;
+                        //                 sent_ack_count += ((sent.match( /AA/g) || []).length) ;
+                        //                 let response = element.connectorMessage[0].response[0].content[0];
+                        //                 received_nack_count += ((response.match( /AE/g) || []).length) ;
+                        //                 received_ack_count += ((response.match( /AA/g) || []).length) ; 
+                        //             //}
                                 
-                         });
+                        //  });
                          //console.log("ack: "+ack_count+" "+"nack: " + nack_count );
                             
                         var systemObj = new system ('Exeter',
@@ -76,11 +77,11 @@ router.get('/', (req, res, next) => {
                         //console.log(systemObj);
                         responses.push(systemObj);
                         completed_requests++;
-                        if(completed_requests === urls.length){
-                            //console.log(JSON.parse(JSON.stringify(responses)));
+                        // if(completed_requests === urls.length){
+                        //     //console.log(JSON.parse(JSON.stringify(responses)));
 
-                            res.json(JSON.parse(JSON.stringify(responses)));
-                        }
+                        //     res.json(JSON.parse(JSON.stringify(responses)));
+                        // }
 
 
 
@@ -99,67 +100,6 @@ router.get('/', (req, res, next) => {
             console.log(data);
             let systems = JSON.parse(data);
             res.json(systems);*/
-});
-router.route('/id').get( (req, res, next) => {
-    
-    request.get({url : "https://app-15086.on-aptible.com/api/channels/47755bd5-d542-4256-80fb-63b92b4d93b6/messages/?includeContent=true&offset=0&limit=20", 
-    headers : {
-         responseType:'application/xml',
-         Accept:  'application/xml',
-         'Access-Control-Allow-Origin' : '*',
-         Authorization : 'Basic ' + 'YWRtaW46RWthcmUxMjNA'
-    
-    }},(error, response, body)=>{
-        if(error) {
-            return console.dir(error);
-        }
-        
-        parseString(body,function(e,r){
-            let data = JSON.parse(JSON.stringify(r));
-            // delete data[list];
-            // res.json(
-            //     data
-            // );
-             // create an instance
-             let sent_ack_count = 0;
-             let sent_nack_count = 0;
-             let received_ack_count = 0;
-             let received_nack_count = 0;
-             r.list.message.forEach(msg =>{
-                    msg.connectorMessages[0].entry.forEach(element => {
-
-                    let connectorName = element.connectorMessage[0].connectorName;
-                    if(connectorName.toString() === "Processing" ){
-                        let sent = element.connectorMessage[0].sent[0].content[0];
-                        sent_nack_count += ((sent.match( /AE/g) || []).length) ;
-                        sent_ack_count += ((sent.match( /AA/g) || []).length) ;
-                        let response = element.connectorMessage[0].response[0].content[0];
-                        
-                        
-
-                        received_nack_count += ((response.match( /AE/g) || []).length) ;
-                        received_ack_count += ((response.match( /AA/g) || []).length) ;  
-                }
-                    
-             });
-            });
-             //console.log("ack: "+ack_count+" "+"nack: " + nack_count );
-                
-            var systemObj = new system ('ADT',
-            new messages(received_ack_count,received_nack_count),
-            new messages(sent_ack_count,sent_nack_count));
-            res.json(systemObj);
-        });
-    /*Channel.findById(req.params.id)
-        .then(doc => {
-            if (doc) {
-                res.status(200).json(doc);
-            } else {
-                res.status(404).json({ messgae: 'Channel not found!' });
-            }
-        });*/
-    });
-});
 });
 
 
