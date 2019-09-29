@@ -7,6 +7,9 @@ var request = require('request');
 var xpath = require('xpath')
   , dom = require('xmldom').DOMParser
 
+  var Facility = require('../models/facility');
+
+
 function system (last_message_received, last_message_sent, sites){
     this.last_message_received = last_message_received;
     this.last_message_sent = last_message_sent;
@@ -23,6 +26,18 @@ function messages(ack,nack){
     this.ack = ack;
     this.nack = nack; 
 }
+router.get('/', async(req,res,next) =>{
+    let facilities = await Facility.findAll();
+    let resp = {};
+    facilities.forEach(elem => {
+        resp[elem.code] = {};
+        resp[elem.code]["messages_received"] = new messages(0, 0);
+        resp[elem.code]["messages_sent"] = new messages(0, 0);
+        console.log(elem);
+    });
+
+    res.json(resp);
+});
 
 router.get('/:facilityId',(req, res, next)=>{
     var urls = ["https://app-15086.on-aptible.com/api/channels/d2171a62-702b-4262-b026-eded81cc0719/messages/1",
@@ -34,7 +49,7 @@ router.get('/:facilityId',(req, res, next)=>{
 
     urls.forEach(uri =>{
         request.get({url : uri,
-        proxy: 'http://10.23.201.11:3128', // if having internet access directly, comment this line 
+            // proxy: 'http://10.23.201.11:3128', // if having internet access directly, comment this line 
         headers : {
             responseType:'application/xml',
             Accept:  'application/xml',

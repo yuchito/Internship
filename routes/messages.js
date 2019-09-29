@@ -6,17 +6,7 @@ var request = require('request');
 var ExternalSystem = require('../models/externalSystem');
 
 
-// constructor function 
-function system(name, last_message_received, last_message_sent) {
-    // add patients-wounds-measurements
-    this.name = name;
-    this.last_message_received = last_message_received;
-    this.last_message_sent = last_message_sent;
-}
-function messages(ack, nack) {
-    this.ack = ack;
-    this.nack = nack;
-}
+
 
 
 router.get('/', async(req, res, next)=>{
