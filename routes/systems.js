@@ -6,7 +6,7 @@ var btoa = require('btoa');
 var parseString = require('xml2js').parseString;
 var request = require('request');
 var promise = require('promise');
-var ExternelSystem = require('../models/externelSystem');
+var ExternalSystem = require('../models/externalSystem');
 var Message = require('../models/message');
 const formatMessage = require('../modules/formatMessage');
 var xpath = require('xpath'),
@@ -28,7 +28,7 @@ function messages(ack, nack) {
 
 router.get('/', async(req, res, next) => {
 
-    let systems = await ExternelSystem.findAll();
+    let systems = await ExternalSystem.findAll();
     let resp = {};
     systems.forEach(elem => {
         resp[elem.name.toLowerCase()] = {};
@@ -40,10 +40,10 @@ router.get('/', async(req, res, next) => {
     urlsMessagesPerChannel = [];
 
     response = await axios.get(config.mirth.url + 'channels/idsAndNames', {
-        proxy: {
-            host: '10.23.201.11',
-            port: 3128,
-        },
+        // proxy: {
+        //     host: '10.23.201.11',
+        //     port: 3128,
+        // },
         headers: { Authorization: 'Basic ' + btoa(config.mirth.user + ':' + config.mirth.password) }
     });
 
@@ -58,10 +58,10 @@ router.get('/', async(req, res, next) => {
     urlsMessagesPerChannel.forEach(async url => {
         try {
             response = await axios.get(url + '?includeContent=true&offset=0&limit=20', {
-                proxy: {
-                    host: '10.23.201.11',
-                    port: 3128,
-                },
+                // proxy: {
+                //     host: '10.23.201.11',
+                //     port: 3128,
+                // },
                 headers: { Authorization: 'Basic ' + btoa(config.mirth.user + ':' + config.mirth.password) }
             });
             if (response.status !== 200) {
@@ -80,6 +80,7 @@ router.get('/', async(req, res, next) => {
             }
 
         } catch (err) {
+            
             return res.json(err);
         }
     });
@@ -93,7 +94,6 @@ router.get('/', async(req, res, next) => {
             message.ackNack ? resp[message.externalsystem].messages_received.ack++ : resp[message.externalsystem].messages_received.nack++;
         }
     }
-    return res.json(resp);
 
 
     var urls = ["https://app-15086.on-aptible.com/api/channels/47755bd5-d542-4256-80fb-63b92b4d93b6/messages/?includeContent=true&offset=0&limit=20",
@@ -156,7 +156,6 @@ router.get('/', async(req, res, next) => {
                     if (completed_requests === urls.length) {
                         //console.log(JSON.parse(JSON.stringify(responses)));
 
-                        res.json(JSON.parse(JSON.stringify(responses)));
                     }
 
 
