@@ -5,7 +5,7 @@ var parseString = require('xml2js').parseString;
 var request = require('request');
 
 // constructor function 
-function system (name,last_message_received,last_message_sent){
+function system(name, last_message_received, last_message_sent) {
     // add patients-wounds-measurements
     this.name = name;
     this.last_message_received = last_message_received;
@@ -52,6 +52,6 @@ router.get('/',(req, res, next)=>{
              
              
         });
-});
+    });
 });
 module.exports = router;
