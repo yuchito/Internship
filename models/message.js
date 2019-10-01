@@ -1,14 +1,14 @@
-const Sequelize = require('sequelize'),
+const Sequelize = require('sequelize');
 
-const db = require('../config/database'),
+const db = require('../config/database');
 
 const Message = db.define('externalsystems', {
-    type : type,
-      isReceived : isReceived,
-      date : date,
-      externalsystem : externalsystem,
-      facility : facility,
-      ackNack : ackNack
+        type : Sequelize.STRING,
+      isReceived : Sequelize.BOOLEAN,
+      date : Sequelize.DATE,
+      externalsystem : Sequelize.STRING,
+      facility : Sequelize.STRING,
+      ackNack : Sequelize.STRING
 });
 
 
