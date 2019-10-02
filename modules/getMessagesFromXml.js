@@ -6,7 +6,7 @@ var xpath = require('xpath')
 
 
 getMessagesFromXML = function(str) {
-    var  _messages = [];
+   var  _messages = [];
     // str parsing
     var doc = new dom().parseFromString(str);
     var messages = xpath.select("/list/message/connectorMessages", doc);
@@ -17,11 +17,11 @@ getMessagesFromXML = function(str) {
             _messages.push(formatReceivedMessage(entryReceived));
         }
         var entrySent = xpath.select("//entry[int!='0' and last()]", doc);
-        // if (formatSentMessage(entrySent)) {
-        //     _messages.push(formatSentMessage(entrySent));
-        // }
-        // var sents = xpath.select("//entry[int!='0']", doc);
-    });
+        if (formatSentMessage(entrySent)) {
+            _messages.push(formatSentMessage(entrySent));
+        }
+        var sents = xpath.select("//entry[int!='0']", doc);
+    })
 
     return _messages;
 }
