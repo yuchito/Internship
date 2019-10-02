@@ -3,40 +3,146 @@ var router = express.Router();
 
 var parseString = require('xml2js').parseString;
 var request = require('request');
-
+var axios = require('axios');
+var btoa = require('btoa');
 var xpath = require('xpath')
-  , dom = require('xmldom').DOMParser
+  , dom = require('xmldom').DOMParser;
+const config = require('../config');
+const ExternalSystem = require('../models/externalSystem');
+const Facility = require('../models/facility');
+var getMessagesFromXML = require('../modules/getMessagesFromXml');
 
-  var Facility = require('../models/facility');
+const sequelize = require('sequelize');
 
 
-function system (last_message_received, last_message_sent, sites){
-    this.last_message_received = last_message_received;
-    this.last_message_sent = last_message_sent;
-    this.sites = sites;
-}
 
-function facility (site_name, messages_received, messages_sent){
-    this.site_name = site_name;
-    this.messages_received = messages_received;
-    this.messages_sent = messages_sent;
-}
 
-function messages(ack,nack){
-    this.ack = ack;
-    this.nack = nack; 
-}
-router.get('/', async(req,res,next) =>{
-    let facilities = await Facility.findAll();
-    let resp = {};
-    facilities.forEach(elem => {
-        resp[elem.code] = {};
-        resp[elem.code]["messages_received"] = new messages(0, 0);
-        resp[elem.code]["messages_sent"] = new messages(0, 0);
-        console.log(elem);
+
+
+router.get('/:systemName', async(req,res,next) =>{
+    externalsystem = await ExternalSystem.findOne({
+        where: sequelize.where(
+            sequelize.fn('lower', sequelize.col('name')),
+            sequelize.fn('lower', req.params.systemName)
+        ) 
+    });
+    
+    if (!externalsystem) {
+        res.statusCode = 404;
+        return res.json("Not Found");
+    }
+
+    facilities = await Facility.findAll({ where: { es: externalsystem.id } });
+    systemName = req.params.systemName;
+    let resp = {
+        sites: {}
+    };
+    facilities.forEach(facility => {
+        /*resp[elem.code] = {};
+        resp[elem.code]["site name"]= elem.name;
+        // console.log(elem.name);
+        // need to add message type
+        resp[elem.code]["messages_received"] ={"all": new messages(0, 0),[elem.name]: new messages(0,0)};
+        resp[elem.code]["messages_sent"] = {"all": new messages(0, 0)};*/
+        resp.sites[facility.code.toLowerCase()] = {};
+        resp.sites[facility.code.toLowerCase()].site_name;
+        resp.sites[facility.code.toLowerCase()].site_name = facility.name;
+        resp.sites[facility.code.toLowerCase()].messages_received = {
+            all: {
+                ack: 0,
+                nack: 0
+            }
+        };
+        resp.sites[facility.code.toLowerCase()].messages_sent = {
+            all: {
+                ack: 0,
+                nack: 0
+            }
+        };
     });
 
-    res.json(resp);
+    urlsMessagesPerChannel = [];
+    response = await axios.get(config.mirth.url + 'channels/idsAndNames', {
+        proxy: {
+            host: '10.23.201.11',
+            port: 3128,
+        },
+        headers: { Authorization: 'Basic ' + btoa(config.mirth.user + ':' + config.mirth.password) }
+    });
+
+    var doc = new dom().parseFromString(response.data);
+    var channels = xpath.select("//entry", doc);
+    channels.forEach(elem => {
+        var doc = new dom().parseFromString('' + elem);
+        url = config.mirth.url + 'channels/' + xpath.select('string(//string)', doc) + '/messages';
+        //url += '?includeContent=true&offset=0&limit=20';
+        urlsMessagesPerChannel.push(url);
+    });
+    await Promise.all(urlsMessagesPerChannel.map(async url => {
+        response = await axios.get(url + '?includeContent=true&offset=0&limit=20', {
+            proxy: {
+                host: '10.23.201.11',
+                port: 3128,
+            },
+            headers: { Authorization: 'Basic ' + btoa(config.mirth.user + ':' + config.mirth.password) }
+        });
+        if (response.status !== 200) {
+            return res.json('error');
+        } else {
+            let messages = await getMessagesFromXML(response.data);
+            messages.filter((value, index, aray) => {
+                return (value.externalsystem === req.params.systemName);
+            });
+            for (var i in messages) {
+                message = messages[i];
+                if (message && (resp.sites[message.facility.toLowerCase()]) && (message.externalsystem.toLowerCase() === req.params.systemName.toLowerCase())) {
+                    if (message.isReceived) {
+                        if (resp.last_message_received) {
+                            if (new Date(resp.last_message_received) < new Date(message.date)) {
+                                resp.last_message_received = message.date
+                            }
+                        } else {
+                            resp.last_message_received = message.date;
+                        }
+                        if (resp.sites[message.facility.toLowerCase()].messages_received[message.type] === undefined) {
+                            resp.sites[message.facility.toLowerCase()].messages_received[message.type] = {};
+                            resp.sites[message.facility.toLowerCase()].messages_received[message.type].ack = 0;
+                            resp.sites[message.facility.toLowerCase()].messages_received[message.type].nack = 0;
+                        }
+                        if (message.ackNack) {
+                            resp.sites[message.facility.toLowerCase()].messages_received[message.type].ack++
+                                resp.sites[message.facility.toLowerCase()].messages_received.all.ack++
+                        } else {
+                            resp.sites[message.facility.toLowerCase()].messages_received[message.type].nack++;
+                            resp.sites[message.facility.toLowerCase()].messages_received.all.nack++;
+                        }
+                    } else {
+                        if (resp.last_message_sent) {
+                            if (new Date(resp.last_message_sent) < new Date(message.date)) {
+                                resp.last_message_sent = message.date
+                            }
+                        } else {
+                            resp.last_message_sent = message.date;
+                        }
+                        if (resp.sites[message.facility.toLowerCase()].messages_sent[message.type] === undefined) {
+                            resp.sites[message.facility.toLowerCase()].messages_sent[message.type] = {};
+                            resp.sites[message.facility.toLowerCase()].messages_sent[message.type].ack = 0;
+                            resp.sites[message.facility.toLowerCase()].messages_sent[message.type].nack = 0;
+                        }
+
+                        if (message.ackNack) {
+                            resp.sites[message.facility.toLowerCase()].messages_sent[message.type].ack++;
+                            resp.sites[message.facility.toLowerCase()].messages_sent.all.ack++
+                        } else {
+                            resp.sites[message.facility.toLowerCase()].messages_sent[message.type].nack++;
+                            resp.sites[message.facility.toLowerCase()].messages_sent.all.nack++
+                        }
+                    }
+                }
+            }
+        }
+    }));
+    return res.json(resp);    
 });
 
 router.get('/:facilityId',(req, res, next)=>{
