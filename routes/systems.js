@@ -8,71 +8,62 @@ var request = require('request');
 var promise = require('promise');
 var ExternalSystem = require('../models/externalSystem');
 var Message = require('../models/message');
-const formatMessage = require('../modules/formatMessage');
-var xpath = require('xpath'),
-    dom = require('xmldom').DOMParser;
+
 const config = require('../config');
 var getMessagesFromXML = require('../modules/getMessagesFromXml');
-// constructor function 
-function system(name, messages_received, messages_sent) {
-    // add patients-wounds-measurements
-    this.name = name;
-    this.messages_received = messages_received;
-    this.messages_sent = messages_sent;
-}
-
-function messages(ack, nack) {
-    this.ack = ack;
-    this.nack = nack;
-}
 
 router.get('/', async(req, res, next) => {
-
+    // Get external systems from database & initialize response
     let systems = await ExternalSystem.findAll();
     let resp = {};
+    // construct JSON response
     systems.forEach(elem => {
         resp[elem.name.toLowerCase()] = {};
-        resp[elem.name.toLowerCase()]["messages_received"] = new messages(0, 0);
-        resp[elem.name.toLowerCase()]["messages_sent"] = new messages(0, 0);
+        resp[elem.name.toLowerCase()]["messages_received"] = {
+            ack: 0,
+            nack: 0
+        };
+        resp[elem.name.toLowerCase()]["messages_sent"] = {
+            ack: 0,
+            nack: 0
+        };
     });
 
-    //http://api-mirth-url//api/channelId/messages
+    // The array that will contains the data coming from mirth API
+    // url form : http://api-mirth-url//api/channelId/messages
     urlsMessagesPerChannel = [];
-
-    response = await axios.get(config.mirth.url + 'channels/idsAndNames', {
-        // proxy: {
-        //     host: '10.23.201.11',
-        //     port: 3128,
-        // },
-        headers: { Authorization: 'Basic ' + btoa(config.mirth.user + ':' + config.mirth.password) }
-    });
-
-    var doc = new dom().parseFromString(response.data);
-    var channels = xpath.select("//entry", doc);
+    // var doc = new dom().parseFromString(response.data);
+    var channels = await Channel.findAll({attributes: ['id']});
     channels.forEach(elem => {
-        var doc = new dom().parseFromString('' + elem);
-        url = config.mirth.url + 'channels/' + xpath.select('string(//string)', doc) + '/messages';
+        // var doc = new dom().parseFromString('' + elem);
+        url = config.mirth.url + 'channels/' + elem.id.trim() + '/messages';
         //url += '?includeContent=true&offset=0&limit=20';
         urlsMessagesPerChannel.push(url);
     });
-    urlsMessagesPerChannel.forEach(async url => {
+    // Loop through the urls array 
+    await Promise.all(urlsMessagesPerChannel.map(async url => {
         try {
             response = await axios.get(url + '?includeContent=true&offset=0&limit=20', {
-                // proxy: {
-                //     host: '10.23.201.11',
-                //     port: 3128,
-                // },
+                // proxy config
+                proxy: {
+                    host: '10.23.201.11',
+                    port: 3128,
+                },
                 headers: { Authorization: 'Basic ' + btoa(config.mirth.user + ':' + config.mirth.password) }
             });
             if (response.status !== 200) {
                 return res.json('error');
             } else {
-                messages = getMessagesFromXml(response.data);
+                // For each system we pass the response data to getMessagesFromXML funct
+                // This function will do the parsing and return the needed data
+                messages = await getMessagesFromXML(response.data);
                 messages.forEach(message => {
-                    if (message) {
-                        if (message.sent) {
+                    // ackNack = true => message is acknowledged ack+=1
+                    // ackNack = false => message is not acknowledged nack+=1
+                    if (message && resp[message.externalsystem]) {
+                        if (!message.isReceived) {
                             message.ackNack ? resp[message.externalsystem].messages_sent.ack++ : resp[message.externalsystem].messages_sent.nack++;
-                        } else if (message.received) {
+                        } else if (message.isReceived) {
                             message.ackNack ? resp[message.externalsystem].messages_received.ack++ : resp[message.externalsystem].messages_received.nack++;
                         }
                     }
@@ -83,9 +74,11 @@ router.get('/', async(req, res, next) => {
             
             return res.json(err);
         }
-    });
+    }));
+    // console.log(resp);
     return res.json(resp);
-    str = "MSH|^~\&amp;|GEC|TTT|EKARE|EKARE|201908061212||SIU^S12|H20190806121235.9956|P|2.3|-1||||||||&#xd;SCH|26721328||||||cysto-trus|CYS|15|MIN|^^^201909100900|353060^BANDI MD^GAURAV^^^^^1891750196^107008||||||||JXC74|||||P|||DOC||CYSTO|GUH PHC-4TH FL|UROLOGY-GUH||MU5||||||JXC74|&#xd;NTE|1||sched wpt on 08/06/2019||||&#xd;PID|1|11669410^^^MEDSTAR|1111111121^^^GUH||test^test^MITCHELL^^^^L||19531110|M|||212 MISSISSIPPI AVE SE^APT 201^WASHINGTON^DC^20032||(240)353-1765|||||||||||||||||||||||||||||&#xd;PV1|1|O|GP4||||353060^BANDI MD^GAURAV.^^^^^1891750196||||||||||||26721328|||||||||||||||||||||||||201909100900|||||||||||&#xd;AIS|1||26721328|201909100900|||15|MIN||P|&#xd;AIG|1||353060^BANDI MD^GAURAV^^^^^1891750196^107008|S||||201909100900|||15|MIN||P|&#xd;AIL|1||GP4~GURO|||201909100900|||15|MIN||P|&#xd;AIP|1||353060^BANDI MD^GAURAV^^^^^1891750196^107008|S||201909100900|||15|MIN||P|";
+    // HL7 message form
+    /*str = "MSH|^~\&amp;|GEC|TTT|EKARE|EKARE|201908061212||SIU^S12|H20190806121235.9956|P|2.3|-1||||||||&#xd;SCH|26721328||||||cysto-trus|CYS|15|MIN|^^^201909100900|353060^BANDI MD^GAURAV^^^^^1891750196^107008||||||||JXC74|||||P|||DOC||CYSTO|GUH PHC-4TH FL|UROLOGY-GUH||MU5||||||JXC74|&#xd;NTE|1||sched wpt on 08/06/2019||||&#xd;PID|1|11669410^^^MEDSTAR|1111111121^^^GUH||test^test^MITCHELL^^^^L||19531110|M|||212 MISSISSIPPI AVE SE^APT 201^WASHINGTON^DC^20032||(240)353-1765|||||||||||||||||||||||||||||&#xd;PV1|1|O|GP4||||353060^BANDI MD^GAURAV.^^^^^1891750196||||||||||||26721328|||||||||||||||||||||||||201909100900|||||||||||&#xd;AIS|1||26721328|201909100900|||15|MIN||P|&#xd;AIG|1||353060^BANDI MD^GAURAV^^^^^1891750196^107008|S||||201909100900|||15|MIN||P|&#xd;AIL|1||GP4~GURO|||201909100900|||15|MIN||P|&#xd;AIP|1||353060^BANDI MD^GAURAV^^^^^1891750196^107008|S||201909100900|||15|MIN||P|";
     let message = formatMessage(str);
     if (message) {
         if (message.sent) {
@@ -93,12 +86,10 @@ router.get('/', async(req, res, next) => {
         } else if (message.received) {
             message.ackNack ? resp[message.externalsystem].messages_received.ack++ : resp[message.externalsystem].messages_received.nack++;
         }
-    }
+    }*/
 
 
-    var urls = ["https://app-15086.on-aptible.com/api/channels/47755bd5-d542-4256-80fb-63b92b4d93b6/messages/?includeContent=true&offset=0&limit=20",
-        "https://app-15086.on-aptible.com/api/channels/d2171a62-702b-4262-b026-eded81cc0719/messages/?includeContent=true&offset=0&limit=20"
-    ];
+   /*
     var responses = [];
     var completed_requests = 0;
 
@@ -166,15 +157,7 @@ router.get('/', async(req, res, next) => {
             });
 
         });
-
-
-
-        /*parseString(body, function(err,result){
-            let data = JSON.stringify(result);
-            console.log(data);
-            let systems = JSON.parse(data);
-            res.json(systems);*/
-});
+    });*/
 
 
 
@@ -200,7 +183,7 @@ router.get('/', async(req, res, next) => {
     }, (err) => next(err))
     .catch((err) => next(err));*/
 //});
-
+/* DEAD CODE */
 router.post('/', (req, res, next) => {
     const channel = new Channel({
         title: req.body.title,
