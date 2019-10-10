@@ -2,9 +2,12 @@ const Message = require('../models/message');
 var xpath = require('xpath'),
     dom = require('xmldom').DOMParser
 
+    // This is a generic function to parse the xml and extract from the HL7 message the data needed
+    // And then return the sent message and the attributes
 formatMessage = function(entry) {
     var doc = new dom().parseFromString('' + entry);
     var sendDate = xpath.select("string(//connectorMessage/sendDate/time)", doc);
+
     /*var hl7Content = xpath.select("string(//connectorMessage/raw/content)", doc);
     dataType = xpath.select("string(//connectorMessage/raw/dataType)", doc);
     if(hl7Content.toLowerCase().includes('msh')) {
