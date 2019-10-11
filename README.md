@@ -21,7 +21,7 @@ A web based API which interacts with **Mirth Connect API** and **PostgreSQL**
 
 ## API Endpoints
 Express middleware to serve `/index`, `/systems`, `/facilities/:systemName` and `/messages` endpoints.
-<h3>Tests</h3>
+<b>Tests</b>
 
 - Install **Postman** to interact with REST API
 -   Create a message with:
@@ -29,13 +29,13 @@ Express middleware to serve `/index`, `/systems`, `/facilities/:systemName` and 
     -   Method: GET
     -   Body: raw + JSON (application/json)
     -   Body Content:  `{ "text": "Hi again, World" }`
-<h3>Status</h3>
+<b>Status<b>
 
 - `200 OK`
 - `503 Service Unavailable`
 - `401 Unauthorized`
 - `404 Not Found`
-<h3>Routes</h3>
+<b>Routes</b>
 
 - GoodToGo ( `/index` )
 Emitting a  `200 OK`  response if the application should be considered healthy, and  `503 Service Unavailable`  if it should not. This is intended to be used to make routing decisions.
