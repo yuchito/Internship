@@ -11,12 +11,9 @@ A web based API which interacts with **Mirth Connect API** and **PostgreSQL**
 - [pgAdmin 4](https://www.pgadmin.org/download/)
 - [Postman](https://www.getpostman.com/)
 
-## Installation
--  `git clone` this repo
-- `npm install` on the directory
--  Edit the config.js file to suit your needs
--  `npm start`
--  [<b>Mirth API Documentation<b>](https://bridge.nextgen.com/media/3244/NextGen%20Connect%203.7%20User%20Guide.pdf)
+
+
+-  [Mirth API Documentation](https://bridge.nextgen.com/media/3244/NextGen%20Connect%203.7%20User%20Guide.pdf)
 
 
 ## API Endpoints
