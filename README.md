@@ -21,7 +21,7 @@ A web based API which interacts with **Mirth Connect API** and **PostgreSQL**
 
 ## API Endpoints
 Express middleware to serve `/index`, `/systems`, `/facilities/:systemName` and `/messages` endpoints.
-<b>Tests</b>
+###Tests
 
 - Install **Postman** to interact with REST API
 -   Create a message with:
