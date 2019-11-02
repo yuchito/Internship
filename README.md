@@ -26,13 +26,15 @@ Express middleware to serve `/index`, `/systems`, `/facilities/:systemName` and 
     -   Method: GET
     -   Body: raw + JSON (application/json)
     -   Body Content:  `{ "text": "Hi again, World" }`
-<b>Status<b>
+    
+### Status
 
 - `200 OK`
 - `503 Service Unavailable`
 - `401 Unauthorized`
 - `404 Not Found`
-<b>Routes</b>
+
+### Routes
 
 - GoodToGo ( `/index` )
 Emitting a  `200 OK`  response if the application should be considered healthy, and  `503 Service Unavailable`  if it should not. This is intended to be used to make routing decisions.
